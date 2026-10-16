@@ -1,57 +1,32 @@
-plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "dev.flutter.flutter-gradle-plugin"
-}
+name: Build APK
 
-android {
-    namespace = "com.chaosvoice"
-    compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+on:
+  workflow_dispatch:
 
-    defaultConfig {
-        applicationId = "com.chaosvoice"
-        minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
-    }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    compileOptions {
-        coreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
-    }
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+          channel: 'stable'
 
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.debug
+      - run: flutter pub get
 
-            // DISABLED TO FIX R8 MISSING CLASSES ERROR
-            minifyEnabled false
-            shrinkResources false
+      - run: dart run build_runner build --delete-conflicting-outputs
+        continue-on-error: true
 
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-}
+      - run: flutter build apk --release --no-shrink
 
-flutter {
-    source = "../.."
-}
-
-dependencies {
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
-
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.2.20"
-
-    // FIX FOR PLAY CORE MISSING CLASSES
-    implementation "com.google.android.play:core:1.10.3"
-}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chaosvoice-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
